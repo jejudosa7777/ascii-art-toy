@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generative ASCII Art</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #canvas {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: crosshair;
+  }
+
+  #art {
+    font-size: 11px;
+    line-height: 1.1;
+    letter-spacing: 2px;
+    white-space: pre;
+    transition: color 0.3s;
+    user-select: none;
+  }
+
+  #panel {
+    width: 220px;
+    background: #111118;
+    border-left: 1px solid #222;
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+
+  h1 {
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 5px;
+  }
+
+  .group label span { color: #aaa; }
+
+  input[type=range] {
+    width: 100%;
+    accent-color: #7c6fff;
+    cursor: pointer;
+  }
+
+  .palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: #fff; }
+
+  .presets {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  button {
+    background: #1c1c28;
+    border: 1px solid #333;
+    color: #aaa;
+    padding: 7px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 4px;
+    text-align: left;
+    letter-spacing: 1px;
+    transition: background 0.15s, color 0.15s;
+  }
+  button:hover { background: #2a2a3a; color: #fff; }
+
+  #save-btn {
+    margin-top: auto;
+    background: #2a1f6e;
+    border-color: #7c6fff;
+    color: #c0b8ff;
+    text-align: center;
+  }
+  #save-btn:hover { background: #3d2fa0; }
+
+  .divider {
+    height: 1px;
+    background: #222;
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas">
+  <pre id="art"></pre>
+</div>
+
+<div id="panel">
+  <h1>ASCII Art</h1>
+
+  <div class="group">
+    <label>패턴 <span id="v-pattern">sine</span></label>
+    <input type="range" id="pattern" min="0" max="5" step="1" value="0">
+  </div>
+
+  <div class="group">
+    <label>주파수 <span id="v-freq">3</span></label>
+    <input type="range" id="freq" min="1" max="20" step="0.5" value="3">
+  </div>
+
+  <div class="group">
+    <label>속도 <span id="v-speed">1</span></label>
+    <input type="range" id="speed" min="0" max="5" step="0.1" value="1">
+  </div>
+
+  <div class="group">
+    <label>밀도 <span id="v-density">5</span></label>
+    <input type="range" id="density" min="1" max="10" step="1" value="5">
+  </div>
+
+  <div class="group">
+    <label>글자 세트 <span id="v-chars">blocks</span></label>
+    <input type="range" id="chars" min="0" max="4" step="1" value="0">
+  </div>
+
+  <div class="group">
+    <label>마우스 영향 <span id="v-mouse">30</span></label>
+    <input type="range" id="mouse" min="0" max="100" step="1" value="30">
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="group">
+    <label>색상 팔레트</label>
+    <div class="palette" id="palette"></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="group">
+    <label>프리셋</label>
+    <div class="presets">
+      <button onclick="applyPreset('matrix')">▶ 매트릭스</button>
+      <button onclick="applyPreset('ocean')">▶ 파도</button>
+      <button onclick="applyPreset('fire')">▶ 불꽃</button>
+      <button onclick="applyPreset('cosmos')">▶ 우주</button>
+      <button onclick="applyPreset('glitch')">▶ 글리치</button>
+    </div>
+  </div>
+
+  <button id="save-btn" onclick="saveAsPNG()">💾 PNG 저장</button>
+</div>
+
+<script>
+const art = document.getElementById('art');
+
+const CHAR_SETS = {
+  blocks:  ' ░▒▓█▓▒░',
+  braille: ' ⠁⠃⠇⠏⠟⠿⣿',
+  classic: ' .:-=+*#%@',
+  katakana:'ｦｱｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ',
+  symbols: ' ·✦★◆◈▲♦◉✿❋',
+};
+const CHAR_KEYS = Object.keys(CHAR_SETS);
+
+const PATTERNS = ['sine', 'ripple', 'spiral', 'noise', 'diamond', 'tunnel'];
+
+const PALETTES = [
+  { name:'green',  colors:['#00ff41','#00cc33','#008f23'] },
+  { name:'cyan',   colors:['#00ffff','#00bfff','#0080ff'] },
+  { name:'purple', colors:['#cc00ff','#8800cc','#4400aa'] },
+  { name:'fire',   colors:['#ff4400','#ff8800','#ffcc00'] },
+  { name:'pink',   colors:['#ff007f','#ff66b2','#ffccee'] },
+  { name:'gold',   colors:['#ffd700','#ffaa00','#ff7700'] },
+  { name:'ice',    colors:['#aaeeff','#88ddff','#44aadd'] },
+  { name:'mono',   colors:['#ffffff','#aaaaaa','#555555'] },
+];
+
+let state = {
+  pattern: 0, freq: 3, speed: 1, density: 5, chars: 0, mouseInfluence: 30,
+  palette: 0, t: 0, mx: 0, my: 0, cols: 80, rows: 40,
+};
+
+// mouse tracking
+document.getElementById('canvas').addEventListener('mousemove', e => {
+  const r = e.currentTarget.getBoundingClientRect();
+  state.mx = (e.clientX - r.left) / r.width;
+  state.my = (e.clientY - r.top) / r.height;
+});
+
+// controls
+function bind(id, key, fmt) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    state[key] = parseFloat(el.value);
+    if (fmt) document.getElementById('v-' + id).textContent = fmt(state[key]);
+  });
+}
+bind('pattern', 'pattern', v => PATTERNS[v]);
+bind('freq', 'freq', v => v);
+bind('speed', 'speed', v => v);
+bind('density', 'density', v => v);
+bind('chars', 'chars', v => CHAR_KEYS[v]);
+bind('mouse', 'mouseInfluence', v => v);
+
+// init labels
+document.getElementById('v-pattern').textContent = PATTERNS[0];
+document.getElementById('v-chars').textContent = CHAR_KEYS[0];
+
+// palette swatches
+const paletteEl = document.getElementById('palette');
+PALETTES.forEach((p, i) => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.style.background = `linear-gradient(135deg, ${p.colors[0]}, ${p.colors[2]})`;
+  s.title = p.name;
+  s.onclick = () => {
+    document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    state.palette = i;
+    updateColor();
+  };
+  paletteEl.appendChild(s);
+});
+
+function updateColor() {
+  art.style.color = PALETTES[state.palette].colors[0];
+}
+updateColor();
+
+// noise helper
+function hash(x, y) {
+  let h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+
+function getVal(cx, cy, t) {
+  const f = state.freq;
+  const mi = state.mouseInfluence / 100;
+  const dx = cx / state.cols - 0.5 - (state.mx - 0.5) * mi;
+  const dy = cy / state.rows - 0.5 - (state.my - 0.5) * mi;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const angle = Math.atan2(dy, dx);
+
+  switch(PATTERNS[state.pattern]) {
+    case 'sine':    return (Math.sin(cx / state.cols * f * Math.PI * 2 + t) + Math.sin(cy / state.rows * f * Math.PI + t * 0.7)) * 0.5;
+    case 'ripple':  return Math.sin(dist * f * 8 - t * 2);
+    case 'spiral':  return Math.sin(dist * f * 6 + angle * 3 - t);
+    case 'noise':   return (hash(Math.floor(cx/2 + t*3), Math.floor(cy/2)) - 0.5) * 2;
+    case 'diamond': return Math.sin((Math.abs(dx) + Math.abs(dy)) * f * 10 - t);
+    case 'tunnel':  return Math.sin(1/(dist + 0.01) * f * 0.3 - t);
+    default: return 0;
+  }
+}
+
+function render() {
+  const chars = CHAR_SETS[CHAR_KEYS[state.chars]];
+  const n = chars.length;
+  const density = state.density;
+  let rows = [], cols = state.cols, rowCount = state.rows;
+
+  for (let y = 0; y < rowCount; y++) {
+    let row = '';
+    for (let x = 0; x < cols; x++) {
+      const v = getVal(x, y, state.t);
+      const norm = (v + 1) / 2; // 0..1
+      const idx = Math.floor(norm * (n - 1) * density / 10);
+      row += chars[Math.min(idx, n - 1)];
+    }
+    rows.push(row);
+  }
+  art.textContent = rows.join('\n');
+}
+
+function resize() {
+  const canvas = document.getElementById('canvas');
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  state.cols = Math.floor(w / 9);
+  state.rows = Math.floor(h / 12);
+}
+
+function loop() {
+  state.t += state.speed * 0.04;
+  render();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', resize);
+resize();
+loop();
+
+function applyPreset(name) {
+  const presets = {
+    matrix:  { pattern:0, freq:5, speed:3, density:8, chars:3, mouseInfluence:10, palette:0 },
+    ocean:   { pattern:1, freq:4, speed:1, density:5, chars:0, mouseInfluence:50, palette:2 },
+    fire:    { pattern:3, freq:3, speed:4, density:9, chars:2, mouseInfluence:20, palette:3 },
+    cosmos:  { pattern:2, freq:6, speed:0.5, density:4, chars:4, mouseInfluence:60, palette:5 },
+    glitch:  { pattern:3, freq:8, speed:5, density:10, chars:1, mouseInfluence:0, palette:4 },
+  };
+  const p = presets[name];
+  if (!p) return;
+  Object.assign(state, p);
+  ['pattern','freq','speed','density','chars','mouse'].forEach(id => {
+    const key = id === 'mouse' ? 'mouseInfluence' : id;
+    document.getElementById(id).value = state[key];
+  });
+  document.getElementById('v-pattern').textContent = PATTERNS[state.pattern];
+  document.getElementById('v-freq').textContent = state.freq;
+  document.getElementById('v-speed').textContent = state.speed;
+  document.getElementById('v-density').textContent = state.density;
+  document.getElementById('v-chars').textContent = CHAR_KEYS[state.chars];
+  document.getElementById('v-mouse').textContent = state.mouseInfluence;
+
+  document.querySelectorAll('.swatch').forEach((s, i) => {
+    s.classList.toggle('active', i === state.palette);
+  });
+  updateColor();
+}
+
+function saveAsPNG() {
+  const canvas = document.createElement('canvas');
+  const lines = art.textContent.split('\n');
+  const cw = 9, ch = 12;
+  canvas.width = lines[0].length * cw;
+  canvas.height = lines.length * ch;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = PALETTES[state.palette].colors[0];
+  ctx.font = `${ch}px 'Courier New', monospace`;
+  lines.forEach((line, i) => ctx.fillText(line, 0, (i + 1) * ch));
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'ascii-art.png';
+  a.click();
+}
+</script>
+</body>
+</html>
