@@ -1,0 +1,115 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0a0a0f;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#canvas {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+#art {
+  font-size: 11px;
+  line-height: 1.1;
+  letter-spacing: 2px;
+  white-space: pre;
+  transition: color 0.3s;
+  user-select: none;
+}
+
+#panel {
+  width: 220px;
+  background: #111118;
+  border-left: 1px solid #222;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+h1 {
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: #888;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.group label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.group label span { color: #aaa; }
+
+input[type=range] {
+  width: 100%;
+  accent-color: #7c6fff;
+  cursor: pointer;
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.active { border-color: #fff; }
+
+.presets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+button {
+  background: #1c1c28;
+  border: 1px solid #333;
+  color: #aaa;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  letter-spacing: 1px;
+  transition: background 0.15s, color 0.15s;
+}
+button:hover { background: #2a2a3a; color: #fff; }
+
+#save-btn {
+  margin-top: auto;
+  background: #2a1f6e;
+  border-color: #7c6fff;
+  color: #c0b8ff;
+  text-align: center;
+}
+#save-btn:hover { background: #3d2fa0; }
+
+.divider {
+  height: 1px;
+  background: #222;
+}
